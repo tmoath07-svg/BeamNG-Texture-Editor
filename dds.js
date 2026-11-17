@@ -23,7 +23,7 @@
     } else if ((pfFlags & 0x40) && (view.getUint32(88, true) === 32 || view.getUint32(88, true) === 24)) {
       format = "RGB";
     } else {
-      throw new Error("صيغة DDS غير مدعومة للمعاينة: " + fourCC);
+      format = fourCC || "UNKNOWN";
     }
     if (!width || !height || width > 16384 || height > 16384) throw new Error("أبعاد التكستر غير صالحة");
     return { width: width, height: height, mipCount: Math.min(mipCount, 16), format: format, dataOffset: dataOffset };
@@ -88,8 +88,8 @@
           out[dst + 3] = alpha ? alpha[pi] : color[3];
         }
       }
-    } else {
-      var bitsPerPixel = view.getUint32(88, true), bytesPerPixel = bitsPerPixel / 8;
+    } else if (info.format === "RGB" || info.format === "RGBA" || info.format === "BGRA") {
+      var bitsPerPixel = info.format === "RGBA" || info.format === "BGRA" ? 32 : view.getUint32(88, true), bytesPerPixel = bitsPerPixel / 8;
       var rMask = view.getUint32(92, true), gMask = view.getUint32(96, true), bMask = view.getUint32(100, true), aMask = view.getUint32(104, true);
       function component(pixel, mask, fallback) {
         if (!mask) return fallback;
@@ -105,11 +105,15 @@
         var dest = (y2 * info.width + x2) * 4;
         if (info.format === "BGRA") {
           out[dest] = view.getUint8(pos + 2); out[dest + 1] = view.getUint8(pos + 1); out[dest + 2] = view.getUint8(pos); out[dest + 3] = view.getUint8(pos + 3);
+        } else if (info.format === "RGBA") {
+          out[dest] = view.getUint8(pos); out[dest + 1] = view.getUint8(pos + 1); out[dest + 2] = view.getUint8(pos + 2); out[dest + 3] = view.getUint8(pos + 3);
         } else {
           out[dest] = component(pixel, rMask, 0); out[dest + 1] = component(pixel, gMask, 0);
           out[dest + 2] = component(pixel, bMask, 0); out[dest + 3] = component(pixel, aMask, 255);
         }
       }
+    } else {
+      throw new Error("صيغة DDS غير مدعومة للمعاينة: " + info.format);
     }
     return { width: info.width, height: info.height, data: out, info: info };
   }

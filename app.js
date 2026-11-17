@@ -122,14 +122,14 @@
   }
   async function importZip(file) {
     if (!window.JSZip) { toast("مكتبة ZIP ما تحمّلت. افتح التطبيق مع اتصال بالإنترنت ثم أعد المحاولة."); return; }
-    if (file.size > 512 * 1024 * 1024) { toast("حجم ZIP أكبر من الحد المسموح (512 MB)"); return; }
+    if (file.size > 256 * 1024 * 1024) { toast("حجم ZIP أكبر من الحد المسموح (256 MB) حفاظاً على ذاكرة الجوال"); return; }
     try {
       toast("جاري قراءة ملف السيارة...");
       const zip = await JSZip.loadAsync(file, { checkCRC32: false, createFolders: false });
       const allEntries = Object.values(zip.files).filter(entry => !entry.dir);
       if (allEntries.length > 25000) throw new Error("الأرشيف يحتوي على ملفات كثيرة جداً");
       const uncompressedTotal = allEntries.reduce((sum, entry) => sum + (entry._data && Number(entry._data.uncompressedSize) || 0), 0);
-      if (uncompressedTotal > 1024 * 1024 * 1024) throw new Error("الحجم بعد فك الضغط يتجاوز 1 GB؛ اختصر ملفات السيارة أولاً");
+      if (uncompressedTotal > 768 * 1024 * 1024) throw new Error("الحجم بعد فك الضغط يتجاوز 768 MB؛ اختصر ملفات السيارة أولاً");
       const items = allEntries.filter(entry => textureExts.includes(extOf(entry.name))).map(entry => ({
         path: entry.name, name: entry.name.split("/").pop(), ext: extOf(entry.name), entry: entry,
         size: entry._data && entry._data.uncompressedSize ? entry._data.uncompressedSize : 0, modified: false
@@ -169,7 +169,7 @@
       state.zip.file(state.currentItem.path, blob, { date: state.currentItem.entry.date });
       state.currentItem.entry = state.zip.file(state.currentItem.path);
       state.currentItem.modified = true;
-      renderList(); toast("تم حفظ التعديل داخل ملف السيارة");
+      renderList(); toast(state.currentItem.ext === "dds" ? "تم حفظ DDS غير مضغوط RGBA؛ اختبره داخل اللعبة" : "تم حفظ التعديل داخل ملف السيارة");
     } catch (error) { toast(error.message || "تعذر حفظ التكستر"); }
   }
   async function getItemDimensions(item) {
@@ -204,7 +204,7 @@
       item.entry = state.zip.file(item.path); item.modified = true;
       renderList();
       if (state.currentItem === item) await loadArchiveItem(item);
-      toast("تم استبدال التكستر وتحويل الصورة تلقائياً إلى " + prettyType(item.ext));
+      toast("تم استبدال التكستر وتحويل الصورة تلقائياً إلى " + prettyType(item.ext) + (item.ext === "dds" ? " غير مضغوط RGBA" : ""));
     } catch (error) { toast(error.message || "تعذر استبدال التكستر"); }
   }
   async function exportZip() {

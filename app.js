@@ -2,7 +2,7 @@
   "use strict";
   const $ = id => document.getElementById(id);
   const canvas = $("editorCanvas"), ctx = canvas.getContext("2d");
-  const state = { zip: null, archiveName: "", items: [], source: null, fileName: "", currentItem: null, fontFamily: "system-ui", fontObjectUrl: null, replacementTarget: null, originalDDSInfo: null, overlaySource: null, overlayX: 50, overlayY: 50, overlaySize: 35, draggingOverlay: false, baseCanvas: null, selection: null, selecting: false, selectionStart: null, selectionMode: false };
+  const state = { zip: null, archiveName: "", items: [], source: null, fileName: "", currentItem: null, fontFamily: "system-ui", fontObjectUrl: null, textWorker: null, cvReady: null, replacementTarget: null, originalDDSInfo: null, overlaySource: null, overlayX: 50, overlayY: 50, overlaySize: 35, draggingOverlay: false, baseCanvas: null, selection: null, selecting: false, selectionStart: null, selectionMode: false };
   let toastTimer = 0;
   const textureExts = ["png", "jpg", "jpeg", "webp", "dds"];
   function toast(message) {
@@ -81,6 +81,119 @@
     if (!state.baseCanvas) return;
     state.baseCanvas.getContext("2d").clearRect(0, 0, state.baseCanvas.width, state.baseCanvas.height);
     state.selection = null; draw(); toast("تم تفريغ الصورة؛ اكتب تصميمك الجديد");
+  }
+
+  async function loadScriptOnce(src, test) {
+    if (test()) return;
+    const existing = [...document.scripts].find(script => script.src === src);
+    if (existing) {
+      await new Promise((resolve, reject) => { existing.addEventListener("load", resolve, { once: true }); existing.addEventListener("error", reject, { once: true }); });
+      if (test()) return;
+      throw new Error("تعذر تحميل مكتبة المعالجة");
+    }
+    await new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = src; script.async = true;
+      script.onload = resolve; script.onerror = () => reject(new Error("تعذر تحميل مكتبة المعالجة؛ تحقق من الإنترنت"));
+      document.head.append(script);
+    });
+    if (!test()) throw new Error("المكتبة لم تجهز بشكل صحيح");
+  }
+  async function getTextRecognizer() {
+    await loadScriptOnce("https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js", () => !!window.Tesseract);
+    if (!state.textWorker) state.textWorker = await window.Tesseract.createWorker("eng+ara", 1);
+    return state.textWorker;
+  }
+  async function getOpenCV() {
+    if (state.cvReady) return state.cvReady;
+    state.cvReady = (async () => {
+      const src = "https://docs.opencv.org/4.x/opencv.js";
+      if (window.cv && window.cv.Mat) return window.cv;
+      const script = document.createElement("script");
+      script.src = src; script.async = true;
+      const loaded = new Promise((resolve, reject) => {
+        script.onload = resolve;
+        script.onerror = () => reject(new Error("تعذر تحميل محرك ترميم الصور؛ تحقق من الإنترنت"));
+        document.head.append(script);
+      });
+      await loaded;
+      const cvRef = window.cv;
+      if (cvRef && cvRef.Mat) return cvRef;
+      await new Promise((resolve, reject) => {
+        const previous = cvRef && cvRef.onRuntimeInitialized;
+        if (!cvRef) { reject(new Error("محرك ترميم الصور لم يبدأ")); return; }
+        cvRef.onRuntimeInitialized = () => { if (typeof previous === "function") previous(); resolve(); };
+        setTimeout(() => reject(new Error("استغرق تشغيل محرك ترميم الصور وقتاً طويلاً")), 90000);
+      });
+      return window.cv;
+    })().catch(error => { state.cvReady = null; throw error; });
+    return state.cvReady;
+  }
+  function inpaintAreas(areas) {
+    if (!state.baseCanvas || !areas.length) throw new Error("ما تم العثور على منطقة لإزالتها");
+    const cvRef = window.cv, width = state.baseCanvas.width, height = state.baseCanvas.height;
+    const baseCtx = state.baseCanvas.getContext("2d", { willReadFrequently: true });
+    const original = baseCtx.getImageData(0, 0, width, height);
+    const src = cvRef.matFromImageData(original), srcRGB = new cvRef.Mat();
+    const mask = cvRef.Mat.zeros(height, width, cvRef.CV_8UC1);
+    const dst = new cvRef.Mat(), dstRGBA = new cvRef.Mat();
+    try {
+      cvRef.cvtColor(src, srcRGB, cvRef.COLOR_RGBA2RGB);
+      areas.forEach(area => {
+        const pad = Math.max(2, Math.round((area.y1 - area.y0) * 0.16));
+        const x0 = Math.max(0, Math.floor(area.x0 - pad));
+        const y0 = Math.max(0, Math.floor(area.y0 - pad));
+        const x1 = Math.min(width - 1, Math.ceil(area.x1 + pad));
+        const y1 = Math.min(height - 1, Math.ceil(area.y1 + pad));
+        if (x1 > x0 && y1 > y0) cvRef.rectangle(mask, new cvRef.Point(x0, y0), new cvRef.Point(x1, y1), new cvRef.Scalar(255), -1);
+      });
+      const radius = Math.max(3, Math.min(9, Math.round(Math.min(width, height) / 180)));
+      cvRef.inpaint(srcRGB, mask, dst, radius, cvRef.INPAINT_TELEA);
+      cvRef.cvtColor(dst, dstRGBA, cvRef.COLOR_RGB2RGBA);
+      const repaired = new Uint8ClampedArray(dstRGBA.data);
+      for (let i = 3; i < repaired.length; i += 4) repaired[i] = original.data[i];
+      baseCtx.putImageData(new ImageData(repaired, width, height), 0, 0);
+    } finally {
+      src.delete(); srcRGB.delete(); mask.delete(); dst.delete(); dstRGBA.delete();
+    }
+    state.selection = null;
+    draw();
+  }
+  async function removeTextAutomatically() {
+    if (!state.baseCanvas) { toast("افتح صورة أولاً"); return; }
+    const button = $("autoRemoveTextButton");
+    button.disabled = true; button.textContent = "جاري اكتشاف النص...";
+    try {
+      toast("جاري قراءة النصوص العربية والإنجليزية...");
+      const worker = await getTextRecognizer();
+      const result = await worker.recognize(state.baseCanvas);
+      const lines = (result.data.lines || []).filter(line => (line.text || "").trim() && line.confidence >= 35 && line.bbox);
+      const areas = lines.map(line => ({ x0: line.bbox.x0, y0: line.bbox.y0, x1: line.bbox.x1, y1: line.bbox.y1 }));
+      if (!areas.length) { toast("ما اكتشفت نص واضح بالصورة؛ جرّب التحديد اليدوي"); return; }
+      button.textContent = "جاري ترميم الصورة...";
+      toast("تم اكتشاف " + areas.length + " منطقة نص؛ جاري ترميمها...");
+      await getOpenCV();
+      inpaintAreas(areas);
+      toast("تمت إزالة النصوص المكتشفة. راجع النتيجة قبل الحفظ");
+    } catch (error) {
+      toast(error.message || "تعذرت إزالة النص تلقائياً");
+    } finally {
+      button.disabled = false; button.textContent = "إزالة النص تلقائياً";
+    }
+  }
+  async function removeTextFromSelection() {
+    if (!state.selection) { toast("حدد النص بالسحب أولاً"); return; }
+    const r = state.selection;
+    const button = $("removeSelectedTextButton");
+    button.disabled = true;
+    try {
+      toast("جاري ترميم المنطقة المحددة...");
+      await getOpenCV();
+      inpaintAreas([{ x0: r.x, y0: r.y, x1: r.x + r.width, y1: r.y + r.height }]);
+      toast("تم ترميم المنطقة المحددة؛ راجع النتيجة قبل الحفظ");
+    } catch (error) {
+      toast(error.message || "تعذر ترميم المنطقة");
+    } finally { button.disabled = false; }
   }
   function showSource(source, item) {
     state.source = source; resetBase(source); state.currentItem = item || null;
@@ -291,6 +404,8 @@
   $("fillSelectionButton").addEventListener("click", () => applySelection("fill"));
   $("eraseSelectionButton").addEventListener("click", () => applySelection("erase"));
   $("clearImageButton").addEventListener("click", clearEntireImage);
+  $("autoRemoveTextButton").addEventListener("click", removeTextAutomatically);
+  $("removeSelectedTextButton").addEventListener("click", removeTextFromSelection);
   $("textInput").addEventListener("input", draw);
   $("textX").addEventListener("input", () => { $("textXValue").value = $("textX").value + "%"; draw(); });
   $("textY").addEventListener("input", () => { $("textYValue").value = $("textY").value + "%"; draw(); });

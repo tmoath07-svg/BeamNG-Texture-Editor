@@ -55,7 +55,20 @@
         </section>
         <aside class="tools-card panel">
           <div class="section-heading compact"><div><h2>أدوات الكتابة</h2><p>أضف عبارة فوق التكستر</p></div></div>
-          <label class="field-label" for="textInput">النص</label>
+          <div class="tool-divider"></div>
+          <h3 class="edit-section-title">تعديل الخلفية والمنطقة</h3>
+          <p class="hint">فعّل التحديد، ثم اسحب بإصبعك أو بالقلم فوق الجزء اللي تبي تعدّله.</p>
+          <button class="secondary-button full" id="selectionModeButton" type="button">تحديد بالسحب</button>
+          <label class="field-label" for="backgroundColor">لون تعبئة المنطقة</label>
+          <div class="color-row"><input id="backgroundColor" type="color" value="#202020"><span>اختر لون الخلفية</span></div>
+          <div class="selection-actions">
+            <button class="primary-button" id="fillSelectionButton" type="button">تعبئة باللون</button>
+            <button class="secondary-button" id="eraseSelectionButton" type="button">حذف المنطقة</button>
+          </div>
+          <button class="secondary-button full danger-button" id="clearImageButton" type="button">حذف الصورة كاملة</button>
+          <p class="hint">بعد الحذف تقدر تبدأ كتابة جديدة أو تضيف ملصق. الحذف يخلي الخلفية شفافة.</p>
+          <div class="tool-divider"></div>
+          <label class="field-label" for="textInput">النص الجديد</label>
           <input class="field" id="textInput" type="text" placeholder="اكتب العبارة هنا">
           <div class="control-row"><label class="field-label" for="textX">موضع النص أفقياً</label><output id="textXValue">50%</output></div>
           <input class="range" id="textX" type="range" min="0" max="100" value="50">

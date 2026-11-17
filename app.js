@@ -2,7 +2,7 @@
   "use strict";
   const $ = id => document.getElementById(id);
   const canvas = $("editorCanvas"), ctx = canvas.getContext("2d");
-  const state = { zip: null, archiveName: "", items: [], source: null, fileName: "", currentItem: null, fontFamily: "system-ui", fontObjectUrl: null, replacementTarget: null, originalDDSInfo: null };
+  const state = { zip: null, archiveName: "", items: [], source: null, fileName: "", currentItem: null, fontFamily: "system-ui", fontObjectUrl: null, replacementTarget: null, originalDDSInfo: null, overlaySource: null, overlayX: 50, overlayY: 50, overlaySize: 35, draggingOverlay: false };
   let toastTimer = 0;
   const textureExts = ["png", "jpg", "jpeg", "webp", "dds"];
   function toast(message) {
@@ -16,22 +16,33 @@
     $("filteredCount").textContent = $("textureList").children.length;
     $("archiveDetails").textContent = state.items.length + " تكستر قابل للتعامل";
   }
+  function drawDecorations(targetCtx, width, height) {
+    const text = $("textInput").value;
+    if (text) {
+      const size = Number($("fontSize").value);
+      const tx = width * Number($("textX").value) / 100;
+      const ty = height * Number($("textY").value) / 100;
+      targetCtx.font = "700 " + size + "px \"" + state.fontFamily + "\"";
+      targetCtx.textAlign = "center"; targetCtx.textBaseline = "middle"; targetCtx.lineJoin = "round";
+      targetCtx.strokeStyle = "rgba(0,0,0,.78)"; targetCtx.lineWidth = Math.max(2, size * .09);
+      targetCtx.strokeText(text, tx, ty, width * .92);
+      targetCtx.fillStyle = $("fontColor").value;
+      targetCtx.fillText(text, tx, ty, width * .92);
+    }
+    if (state.overlaySource) {
+      const ow = width * state.overlaySize / 100;
+      const oh = ow * state.overlaySource.height / state.overlaySource.width;
+      const ox = width * state.overlayX / 100, oy = height * state.overlayY / 100;
+      targetCtx.drawImage(state.overlaySource.image, ox - ow / 2, oy - oh / 2, ow, oh);
+    }
+  }
   function draw() {
     if (!state.source) return;
     canvas.width = state.source.width; canvas.height = state.source.height;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (state.source.data) ctx.putImageData(new ImageData(new Uint8ClampedArray(state.source.data), state.source.width, state.source.height), 0, 0);
     else ctx.drawImage(state.source.image, 0, 0, canvas.width, canvas.height);
-    const text = $("textInput").value;
-    if (text) {
-      const size = Number($("fontSize").value);
-      ctx.font = "700 " + size + "px \"" + state.fontFamily + "\"";
-      ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineJoin = "round";
-      ctx.strokeStyle = "rgba(0,0,0,.78)"; ctx.lineWidth = Math.max(2, size * .09);
-      ctx.strokeText(text, canvas.width / 2, canvas.height / 2, canvas.width * .92);
-      ctx.fillStyle = $("fontColor").value;
-      ctx.fillText(text, canvas.width / 2, canvas.height / 2, canvas.width * .92);
-    }
+    drawDecorations(ctx, canvas.width, canvas.height);
   }
   function showSource(source, item) {
     state.source = source; state.currentItem = item || null;
@@ -180,15 +191,7 @@
       const work = document.createElement("canvas"); work.width = dims.width; work.height = dims.height;
       const workCtx = work.getContext("2d", { alpha: true });
       workCtx.drawImage(source.image, 0, 0, dims.width, dims.height);
-      const text = $("textInput").value;
-      if (text) {
-        const size = Number($("fontSize").value);
-        workCtx.font = "700 " + size + "px \"" + state.fontFamily + "\"";
-        workCtx.textAlign = "center"; workCtx.textBaseline = "middle"; workCtx.lineJoin = "round";
-        workCtx.strokeStyle = "rgba(0,0,0,.78)"; workCtx.lineWidth = Math.max(2, size * .09);
-        workCtx.strokeText(text, dims.width / 2, dims.height / 2, dims.width * .92);
-        workCtx.fillStyle = $("fontColor").value; workCtx.fillText(text, dims.width / 2, dims.height / 2, dims.width * .92);
-      }
+      drawDecorations(workCtx, dims.width, dims.height);
       let output;
       if (item.ext === "dds") {
         const imageData = workCtx.getImageData(0, 0, dims.width, dims.height);
@@ -241,6 +244,48 @@
   $("searchInput").addEventListener("input", renderList);
   $("typeFilter").addEventListener("change", renderList);
   $("textInput").addEventListener("input", draw);
+  $("textX").addEventListener("input", () => { $("textXValue").value = $("textX").value + "%"; draw(); });
+  $("textY").addEventListener("input", () => { $("textYValue").value = $("textY").value + "%"; draw(); });
+  $("overlaySize").addEventListener("input", () => { state.overlaySize = Number($("overlaySize").value); $("overlaySizeValue").value = state.overlaySize + "%"; draw(); });
+  $("overlayInput").addEventListener("change", async () => {
+    const file = $("overlayInput").files && $("overlayInput").files[0]; if (!file) return;
+    try {
+      if (!["png", "jpg", "jpeg", "webp"].includes(extOf(file.name))) throw new Error("اختر PNG أو JPG أو WEBP");
+      state.overlaySource = await imageFromBlob(file); state.overlayX = 50; state.overlayY = 50;
+      state.overlaySize = 35; $("overlaySize").value = "35"; $("overlaySizeValue").value = "35%";
+      $("overlayStatus").textContent = file.name; $("removeOverlayButton").disabled = false;
+      draw(); toast("أضفنا الملصق؛ اسحبه داخل المعاينة");
+    } catch (error) { toast(error.message || "تعذر تحميل الملصق"); }
+    $("overlayInput").value = "";
+  });
+  $("removeOverlayButton").addEventListener("click", () => {
+    state.overlaySource = null; state.draggingOverlay = false;
+    $("overlayStatus").textContent = "ما تم إضافة ملصق صورة";
+    $("removeOverlayButton").disabled = true; draw(); toast("تم حذف الملصق من المعاينة");
+  });
+  canvas.style.touchAction = "none";
+  canvas.addEventListener("pointerdown", event => {
+    if (!state.overlaySource) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (event.clientX - rect.left) * canvas.width / rect.width;
+    const y = (event.clientY - rect.top) * canvas.height / rect.height;
+    const ow = canvas.width * state.overlaySize / 100;
+    const oh = ow * state.overlaySource.height / state.overlaySource.width;
+    const cx = canvas.width * state.overlayX / 100, cy = canvas.height * state.overlayY / 100;
+    if (x >= cx - ow / 2 && x <= cx + ow / 2 && y >= cy - oh / 2 && y <= cy + oh / 2) {
+      state.draggingOverlay = true; canvas.setPointerCapture(event.pointerId); event.preventDefault();
+    }
+  });
+  canvas.addEventListener("pointermove", event => {
+    if (!state.draggingOverlay) return;
+    const rect = canvas.getBoundingClientRect();
+    state.overlayX = Math.max(0, Math.min(100, (event.clientX - rect.left) / rect.width * 100));
+    state.overlayY = Math.max(0, Math.min(100, (event.clientY - rect.top) / rect.height * 100));
+    draw(); event.preventDefault();
+  });
+  const stopOverlayDrag = () => { state.draggingOverlay = false; };
+  canvas.addEventListener("pointerup", stopOverlayDrag);
+  canvas.addEventListener("pointercancel", stopOverlayDrag);
   $("fontSize").addEventListener("input", () => { $("fontSizeValue").value = $("fontSize").value; draw(); });
   $("fontColor").addEventListener("input", () => { $("colorValue").textContent = $("fontColor").value.toUpperCase(); draw(); });
   $("resetButton").addEventListener("click", () => { $("textInput").value = ""; draw(); toast("تمت إزالة الكتابة من المعاينة"); });

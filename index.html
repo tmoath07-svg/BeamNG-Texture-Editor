@@ -57,6 +57,10 @@
           <div class="section-heading compact"><div><h2>أدوات الكتابة</h2><p>أضف عبارة فوق التكستر</p></div></div>
           <label class="field-label" for="textInput">النص</label>
           <input class="field" id="textInput" type="text" placeholder="اكتب العبارة هنا">
+          <div class="control-row"><label class="field-label" for="textX">موضع النص أفقياً</label><output id="textXValue">50%</output></div>
+          <input class="range" id="textX" type="range" min="0" max="100" value="50">
+          <div class="control-row"><label class="field-label" for="textY">موضع النص عمودياً</label><output id="textYValue">50%</output></div>
+          <input class="range" id="textY" type="range" min="0" max="100" value="50">
           <label class="field-label" for="fontInput">خط مخصص (TTF)</label>
           <label class="upload-field">＋ استيراد خط<input id="fontInput" type="file" accept=".ttf,font/ttf"></label>
           <p class="hint" id="fontStatus">يُستخدم الخط الافتراضي حالياً</p>
@@ -64,7 +68,14 @@
           <input class="range" id="fontSize" type="range" min="8" max="160" value="36">
           <label class="field-label" for="fontColor">لون الخط</label>
           <div class="color-row"><input id="fontColor" type="color" value="#ffffff"><span id="colorValue">#FFFFFF</span></div>
-          <p class="hint">المعاينة لا تغيّر الملف الأصلي حتى تضغط «حفظ داخل ZIP».</p>
+          <div class="tool-divider"></div>
+          <label class="field-label" for="overlayInput">ملصق صورة فوق التكستر</label>
+          <label class="upload-field">＋ إضافة صورة كملصق<input id="overlayInput" type="file" accept="image/png,image/jpeg,image/webp"></label>
+          <p class="hint" id="overlayStatus">ما تم إضافة ملصق صورة</p>
+          <div class="control-row"><label class="field-label" for="overlaySize">حجم الملصق</label><output id="overlaySizeValue">35%</output></div>
+          <input class="range" id="overlaySize" type="range" min="5" max="100" value="35">
+          <button class="secondary-button full" id="removeOverlayButton" disabled>حذف الملصق</button>
+          <p class="hint">اسحب الملصق داخل المعاينة لتغيير مكانه. المعاينة لا تغيّر الملف الأصلي حتى تضغط «حفظ داخل ZIP».</p>
         </aside>
       </div>
     </section>

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111318">
+  <meta name="description" content="محرر تكسترات BeamNG.drive محلياً على جهازك">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+  <title>BeamNG Texture Editor</title>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-mark">B</div>
+    <div class="brand-copy"><strong>BEAMNG STUDIO</strong><small>محرر التكسترات</small></div>
+    <span class="local-pill"><i></i> محلي</span>
+  </header>
+  <main class="app-shell">
+    <section class="intro">
+      <p class="eyebrow">TEXTURE WORKSPACE</p>
+      <h1>عدّل تكسترات سيارتك</h1>
+      <p>استورد صورة، عدّل عليها، وصدّر النتيجة من جهازك.</p>
+    </section>
+    <section class="toolbar panel">
+      <label class="search-wrap" for="searchInput"><span aria-hidden="true">⌕</span><input id="searchInput" type="search" placeholder="ابحث عن تكستر..." autocomplete="off"></label>
+      <label class="primary-button file-button">＋ استيراد صورة<input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp"></label>
+    </section>
+    <section class="workspace">
+      <div class="section-heading"><div><h2>مساحة العمل</h2><p id="imageStatus">ما تم استيراد أي صورة</p></div><span class="count" id="textureCount">0</span></div>
+      <div class="editor-grid">
+        <section class="preview-card panel">
+          <div class="preview-head"><strong>معاينة التكستر</strong><span id="formatLabel">PNG / JPG</span></div>
+          <div class="canvas-wrap" id="canvasWrap">
+            <div class="empty-state" id="emptyState"><span class="empty-icon">▧</span><strong>ابدأ باستيراد صورة</strong><small>PNG أو JPG أو WEBP</small></div>
+            <canvas id="editorCanvas" hidden></canvas>
+          </div>
+          <div class="preview-actions"><button class="secondary-button" id="resetButton" disabled>إعادة ضبط</button><button class="primary-button" id="exportButton" disabled>تصدير الصورة</button></div>
+        </section>
+        <aside class="tools-card panel">
+          <div class="section-heading compact"><div><h2>أدوات التعديل</h2><p>أضف كتابة فوق الصورة</p></div></div>
+          <label class="field-label" for="textInput">النص</label>
+          <input class="field" id="textInput" type="text" placeholder="اكتب العبارة هنا">
+          <label class="field-label" for="fontInput">خط مخصص (TTF)</label>
+          <label class="upload-field">＋ استيراد خط<input id="fontInput" type="file" accept=".ttf,font/ttf"></label>
+          <p class="hint" id="fontStatus">يُستخدم الخط الافتراضي حالياً</p>
+          <div class="control-row"><label class="field-label" for="fontSize">حجم الخط</label><output id="fontSizeValue">36</output></div>
+          <input class="range" id="fontSize" type="range" min="8" max="160" value="36">
+          <label class="field-label" for="fontColor">لون الخط</label>
+          <div class="color-row"><input id="fontColor" type="color" value="#ffffff"><span id="colorValue">#FFFFFF</span></div>
+          <button class="secondary-button full" id="applyTextButton" disabled>تطبيق الكتابة على المعاينة</button>
+        </aside>
+      </div>
+    </section>
+    <section class="library panel">
+      <div class="section-heading"><div><h2>الملفات المستوردة</h2><p>تظهر الصور التي تضيفها هنا</p></div><span class="count" id="filteredCount">0</span></div>
+      <div class="texture-list" id="textureList"><div class="list-empty">ما فيه ملفات حالياً</div></div>
+    </section>
+    <footer>BeamNG Texture Editor <span>•</span> تتم معالجة الصور داخل المتصفح</footer>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>

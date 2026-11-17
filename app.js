@@ -66,9 +66,9 @@
         meta.append(name, info);
         const actions = document.createElement("div"); actions.className = "item-actions";
         const open = document.createElement("button"); open.type = "button"; open.textContent = "فتح";
-        open.addEventListener("click", () => loadArchiveItem(item));
+        open.addEventListener("click", () => openItem(item));
         const replace = document.createElement("button"); replace.type = "button"; replace.textContent = "استبدال";
-        replace.addEventListener("click", () => { state.replacementTarget = item; $("replacementInput").click(); });
+        replace.disabled = !state.zip;\n        replace.addEventListener("click", () => { state.replacementTarget = item; $("replacementInput").click(); });
         actions.append(open, replace); row.append(icon, meta, actions); list.append(row);
       });
     }
@@ -83,7 +83,7 @@
       image.src = url;
     });
   }
-  async function loadArchiveItem(item) {
+  async function openItem(item) {\n    if (item.file) {\n      try { const source = await imageFromBlob(item.file); showSource(source, item); toast("تم فتح الصورة"); }\n      catch (error) { toast(error.message || "تعذر فتح الصورة"); }\n      return;\n    }\n    await loadArchiveItem(item);\n  }\n  async function loadArchiveItem(item) {
     try {
       const blob = await item.entry.async("blob");
       if (item.ext === "dds") {
@@ -107,7 +107,7 @@
       toast("جاري قراءة ملف السيارة...");
       const zip = await JSZip.loadAsync(file, { checkCRC32: false, createFolders: false });
       const allEntries = Object.values(zip.files).filter(entry => !entry.dir);
-      if (allEntries.length > 25000) throw new Error("الأرشيف يحتوي على ملفات كثيرة جداً");
+      if (allEntries.length > 25000) throw new Error("الأرشيف يحتوي على ملفات كثيرة جداً");\n      const uncompressedTotal = allEntries.reduce((sum, entry) => sum + (entry._data && Number(entry._data.uncompressedSize) || 0), 0);\n      if (uncompressedTotal > 1024 * 1024 * 1024) throw new Error("الحجم بعد فك الضغط يتجاوز 1 GB؛ اختصر ملفات السيارة أولاً");
       const items = allEntries.filter(entry => textureExts.includes(extOf(entry.name))).map(entry => ({
         path: entry.name, name: entry.name.split("/").pop(), ext: extOf(entry.name), entry: entry,
         size: entry._data && entry._data.uncompressedSize ? entry._data.uncompressedSize : 0, modified: false
@@ -215,10 +215,10 @@
     try {
       if (!["png", "jpg", "jpeg", "webp"].includes(extOf(file.name))) throw new Error("اختر صورة PNG أو JPG أو WEBP");
       const source = await imageFromBlob(file);
-      const item = { name: file.name, path: file.name, ext: extOf(file.name), width: source.width, height: source.height };
+      const item = { name: file.name, path: file.name, ext: extOf(file.name), width: source.width, height: source.height, file: file };
       state.zip = null; state.currentItem = null; state.items = [item];
       $("archiveStrip").hidden = true; $("exportZipButton").disabled = true;
-      showSource(source, null); renderList(); toast("تم استيراد الصورة");
+      showSource(source, item); renderList(); toast("تم استيراد الصورة");
     } catch (error) { toast(error.message); }
     $("imageInput").value = "";
   });

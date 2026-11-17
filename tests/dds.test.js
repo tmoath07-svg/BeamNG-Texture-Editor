@@ -41,3 +41,16 @@ test("decodes a basic DXT1 block", () => {
   assert.equal(decoded.data[2], 0);
   assert.equal(decoded.data[3], 255);
 });
+test("decodes a DXT5 alpha block", () => {
+  const buffer = new ArrayBuffer(144);
+  const view = new DataView(buffer);
+  view.setUint32(0, 0x20534444, true); view.setUint32(4, 124, true);
+  view.setUint32(8, 0x81007, true); view.setUint32(12, 4, true); view.setUint32(16, 4, true);
+  view.setUint32(28, 1, true); view.setUint32(76, 32, true); view.setUint32(80, 4, true);
+  view.setUint32(84, 0x35545844, true); view.setUint32(108, 0x1000, true);
+  view.setUint8(128, 255); view.setUint8(129, 0);
+  view.setUint16(136, 0xf800, true); view.setUint16(138, 0x07e0, true); view.setUint32(140, 0, true);
+  const decoded = DDS.decode(buffer);
+  assert.equal(decoded.data[0], 255);
+  assert.equal(decoded.data[3], 255);
+});

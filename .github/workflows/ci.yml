@@ -16,12 +16,17 @@ jobs:
         with:
           node-version: 22
       - name: Validate JavaScript syntax
-        run: node --check app.js
+        run: |
+          node --check app.js
+          node --check dds.js
+      - name: Run DDS unit tests
+        run: node --test tests/*.test.js
       - name: Validate required app files
         run: |
           test -s index.html
           test -s styles.css
           test -s app.js
+          test -s dds.js
           test -s manifest.webmanifest
           test -s sw.js
       - name: Check HTML document structure
@@ -29,3 +34,5 @@ jobs:
           grep -q '<html lang="ar" dir="rtl">' index.html
           grep -q 'id="editorCanvas"' index.html
           grep -q 'id="searchInput"' index.html
+          grep -q 'id="zipInput"' index.html
+          grep -q 'id="exportZipButton"' index.html

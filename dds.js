@@ -99,7 +99,7 @@
         return max ? Math.round(val * 255 / max) : fallback;
       }
       for (var y2 = 0; y2 < info.height; y2++) for (var x2 = 0; x2 < info.width; x2++) {
-        var pos = info.dataOffset + (y2 * info.width + x2) * bytesPerPixel;
+        var rowPitch = view.getUint32(20, true) || (info.width * bytesPerPixel);\n        var pos = info.dataOffset + y2 * rowPitch + x2 * bytesPerPixel;
         if (pos + bytesPerPixel > buffer.byteLength) throw new Error("بيانات DDS ناقصة");
         var pixel = bytesPerPixel === 4 ? view.getUint32(pos, true) : (view.getUint8(pos) | (view.getUint8(pos + 1) << 8) | (view.getUint8(pos + 2) << 16));
         var dest = (y2 * info.width + x2) * 4;

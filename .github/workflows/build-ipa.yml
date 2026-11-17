@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build-ipa:
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -20,8 +20,16 @@ jobs:
         with:
           node-version: 22
 
-      - name: Show Xcode version
-        run: xcodebuild -version
+      - name: Verify Xcode version
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          XCODE_VERSION="$(xcodebuild -version | awk '/^Xcode / {print $2}')"
+          XCODE_MAJOR="${XCODE_VERSION%%.*}"
+          if [ "$XCODE_MAJOR" -lt 26 ]; then
+            echo "Capacitor 8 requires Xcode 26.0 or newer; found $XCODE_VERSION"
+            exit 1
+          fi
 
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund

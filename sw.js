@@ -1,7 +1,12 @@
-const CACHE = "beamng-texture-editor-shell-v1";
-const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./manifest.webmanifest"];
+const CACHE = "beamng-texture-editor-shell-v2";
+const JSZIP_URL = "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js";
+const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./dds.js", "./manifest.webmanifest"];
 self.addEventListener("install", event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    await cache.addAll(ASSETS);
+    try { await cache.add(JSZIP_URL); } catch (_) {}
+  })());
   self.skipWaiting();
 });
 self.addEventListener("activate", event => {
@@ -9,6 +14,6 @@ self.addEventListener("activate", event => {
   self.clients.claim();
 });
 self.addEventListener("fetch", event => {
-  if (event.request.method !== "GET" || new URL(event.request.url).origin !== self.location.origin) return;
+  if (event.request.method !== "GET") return;
   event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request)));
 });

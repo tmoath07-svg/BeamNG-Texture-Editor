@@ -2,7 +2,7 @@
   "use strict";
   const $ = id => document.getElementById(id);
   const canvas = $("editorCanvas"), ctx = canvas.getContext("2d");
-  const state = { zip: null, archiveName: "", items: [], source: null, fileName: "", currentItem: null, fontFamily: "system-ui", fontObjectUrl: null, replacementTarget: null, originalDDSInfo: null, overlaySource: null, overlayX: 50, overlayY: 50, overlaySize: 35, draggingOverlay: false };
+  const state = { zip: null, archiveName: "", items: [], source: null, fileName: "", currentItem: null, fontFamily: "system-ui", fontObjectUrl: null, replacementTarget: null, originalDDSInfo: null, overlaySource: null, overlayX: 50, overlayY: 50, overlaySize: 35, draggingOverlay: false, baseCanvas: null, selection: null, selecting: false, selectionStart: null, selectionMode: false };
   let toastTimer = 0;
   const textureExts = ["png", "jpg", "jpeg", "webp", "dds"];
   function toast(message) {
@@ -36,16 +36,54 @@
       targetCtx.drawImage(state.overlaySource.image, ox - ow / 2, oy - oh / 2, ow, oh);
     }
   }
-  function draw() {
-    if (!state.source) return;
+  function draw(showSelection = true) {
+    if (!state.source || !state.baseCanvas) return;
     canvas.width = state.source.width; canvas.height = state.source.height;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (state.source.data) ctx.putImageData(new ImageData(new Uint8ClampedArray(state.source.data), state.source.width, state.source.height), 0, 0);
-    else ctx.drawImage(state.source.image, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(state.baseCanvas, 0, 0);
     drawDecorations(ctx, canvas.width, canvas.height);
+    if (showSelection && state.selection) {
+      const r = state.selection;
+      ctx.save(); ctx.setLineDash([8, 5]); ctx.lineWidth = Math.max(1, canvas.width / 500);
+      ctx.strokeStyle = "#ffffff"; ctx.fillStyle = "rgba(167,139,250,.16)";
+      ctx.fillRect(r.x, r.y, r.width, r.height); ctx.strokeRect(r.x, r.y, r.width, r.height); ctx.restore();
+    }
+  }
+  function resetBase(source) {
+    state.baseCanvas = document.createElement("canvas");
+    state.baseCanvas.width = source.width; state.baseCanvas.height = source.height;
+    const baseCtx = state.baseCanvas.getContext("2d", { alpha: true });
+    if (source.data) baseCtx.putImageData(new ImageData(new Uint8ClampedArray(source.data), source.width, source.height), 0, 0);
+    else baseCtx.drawImage(source.image, 0, 0, source.width, source.height);
+    state.selection = null; state.selecting = false; state.selectionStart = null;
+  }
+  function canvasPoint(event) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: Math.max(0, Math.min(canvas.width, (event.clientX - rect.left) * canvas.width / rect.width)),
+      y: Math.max(0, Math.min(canvas.height, (event.clientY - rect.top) * canvas.height / rect.height))
+    };
+  }
+  function selectionRect(a, b) {
+    const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
+    return { x, y, width: Math.abs(b.x - a.x), height: Math.abs(b.y - a.y) };
+  }
+  function applySelection(mode) {
+    if (!state.baseCanvas || !state.selection || state.selection.width < 1 || state.selection.height < 1) {
+      toast("حدد مساحة بالسحب داخل الصورة أولاً"); return;
+    }
+    const r = state.selection, baseCtx = state.baseCanvas.getContext("2d");
+    if (mode === "fill") { baseCtx.fillStyle = $("backgroundColor").value; baseCtx.fillRect(r.x, r.y, r.width, r.height); }
+    else baseCtx.clearRect(r.x, r.y, r.width, r.height);
+    state.selection = null; draw(); toast(mode === "fill" ? "تم تغيير لون المساحة المحددة" : "تم حذف محتوى المساحة المحددة");
+  }
+  function clearEntireImage() {
+    if (!state.baseCanvas) return;
+    state.baseCanvas.getContext("2d").clearRect(0, 0, state.baseCanvas.width, state.baseCanvas.height);
+    state.selection = null; draw(); toast("تم تفريغ الصورة؛ اكتب تصميمك الجديد");
   }
   function showSource(source, item) {
-    state.source = source; state.currentItem = item || null;
+    state.source = source; resetBase(source); state.currentItem = item || null;
     state.fileName = item ? item.name : "texture";
     state.originalDDSInfo = item && item.ddsInfo ? item.ddsInfo : null;
     draw(); canvas.hidden = false; $("emptyState").hidden = true;
@@ -243,6 +281,16 @@
   });
   $("searchInput").addEventListener("input", renderList);
   $("typeFilter").addEventListener("change", renderList);
+  $("selectionModeButton").addEventListener("click", () => {
+    state.selectionMode = !state.selectionMode;
+    $("selectionModeButton").classList.toggle("active", state.selectionMode);
+    $("selectionModeButton").textContent = state.selectionMode ? "إيقاف التحديد" : "تحديد بالسحب";
+    canvas.style.cursor = state.selectionMode ? "crosshair" : "default";
+    toast(state.selectionMode ? "اسحب على الصورة لتحديد المنطقة" : "تم إيقاف وضع التحديد");
+  });
+  $("fillSelectionButton").addEventListener("click", () => applySelection("fill"));
+  $("eraseSelectionButton").addEventListener("click", () => applySelection("erase"));
+  $("clearImageButton").addEventListener("click", clearEntireImage);
   $("textInput").addEventListener("input", draw);
   $("textX").addEventListener("input", () => { $("textXValue").value = $("textX").value + "%"; draw(); });
   $("textY").addEventListener("input", () => { $("textYValue").value = $("textY").value + "%"; draw(); });
@@ -265,27 +313,40 @@
   });
   canvas.style.touchAction = "none";
   canvas.addEventListener("pointerdown", event => {
+    if (!state.source) return;
+    const point = canvasPoint(event);
+    if (state.selectionMode) {
+      state.selecting = true; state.selectionStart = point;
+      state.selection = { x: point.x, y: point.y, width: 0, height: 0 };
+      canvas.setPointerCapture(event.pointerId); draw(); event.preventDefault(); return;
+    }
     if (!state.overlaySource) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = (event.clientX - rect.left) * canvas.width / rect.width;
-    const y = (event.clientY - rect.top) * canvas.height / rect.height;
     const ow = canvas.width * state.overlaySize / 100;
     const oh = ow * state.overlaySource.height / state.overlaySource.width;
     const cx = canvas.width * state.overlayX / 100, cy = canvas.height * state.overlayY / 100;
-    if (x >= cx - ow / 2 && x <= cx + ow / 2 && y >= cy - oh / 2 && y <= cy + oh / 2) {
+    if (point.x >= cx - ow / 2 && point.x <= cx + ow / 2 && point.y >= cy - oh / 2 && point.y <= cy + oh / 2) {
       state.draggingOverlay = true; canvas.setPointerCapture(event.pointerId); event.preventDefault();
     }
   });
   canvas.addEventListener("pointermove", event => {
+    if (state.selecting && state.selectionStart) {
+      state.selection = selectionRect(state.selectionStart, canvasPoint(event)); draw(); event.preventDefault(); return;
+    }
     if (!state.draggingOverlay) return;
-    const rect = canvas.getBoundingClientRect();
-    state.overlayX = Math.max(0, Math.min(100, (event.clientX - rect.left) / rect.width * 100));
-    state.overlayY = Math.max(0, Math.min(100, (event.clientY - rect.top) / rect.height * 100));
+    const point = canvasPoint(event);
+    state.overlayX = point.x / canvas.width * 100; state.overlayY = point.y / canvas.height * 100;
     draw(); event.preventDefault();
   });
-  const stopOverlayDrag = () => { state.draggingOverlay = false; };
-  canvas.addEventListener("pointerup", stopOverlayDrag);
-  canvas.addEventListener("pointercancel", stopOverlayDrag);
+  const stopCanvasDrag = () => {
+    if (state.selecting) {
+      state.selecting = false; state.selectionStart = null;
+      if (!state.selection || state.selection.width < 2 || state.selection.height < 2) state.selection = null;
+      draw();
+    }
+    state.draggingOverlay = false;
+  };
+  canvas.addEventListener("pointerup", stopCanvasDrag);
+  canvas.addEventListener("pointercancel", stopCanvasDrag);
   $("fontSize").addEventListener("input", () => { $("fontSizeValue").value = $("fontSize").value; draw(); });
   $("fontColor").addEventListener("input", () => { $("colorValue").textContent = $("fontColor").value.toUpperCase(); draw(); });
   $("resetButton").addEventListener("click", () => { $("textInput").value = ""; draw(); toast("تمت إزالة الكتابة من المعاينة"); });
@@ -294,7 +355,7 @@
   $("exportButton").addEventListener("click", async () => {
     if (!state.source) return;
     try {
-      draw(); const blob = await canvasBlob("image/png");
+      draw(false); const blob = await canvasBlob("image/png");
       const url = URL.createObjectURL(blob), a = document.createElement("a");
       a.href = url; a.download = (state.fileName || "texture").replace(/\.[^.]+$/, "") + "-edited.png";
       document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);

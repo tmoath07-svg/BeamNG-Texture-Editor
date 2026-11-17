@@ -68,6 +68,12 @@
           <button class="secondary-button full danger-button" id="clearImageButton" type="button">حذف الصورة كاملة</button>
           <p class="hint">بعد الحذف تقدر تبدأ كتابة جديدة أو تضيف ملصق. الحذف يخلي الخلفية شفافة.</p>
           <div class="tool-divider"></div>
+          <h3 class="edit-section-title">إزالة النص من الصورة</h3>
+          <p class="hint">اكتشاف تلقائي للنص العربي والإنجليزي، ثم ترميم المنطقة من تفاصيل الصورة المحيطة.</p>
+          <button class="primary-button full" id="autoRemoveTextButton" type="button">إزالة النص تلقائياً</button>
+          <button class="secondary-button full" id="removeSelectedTextButton" type="button">إزالة النص المحدد بالسحب</button>
+          <p class="hint">يتطلب اتصالاً بالإنترنت عند أول استخدام لتحميل محركات OCR وترميم الصور. النتائج تعتمد على تفاصيل الخلفية.</p>
+          <div class="tool-divider"></div>
           <label class="field-label" for="textInput">النص الجديد</label>
           <input class="field" id="textInput" type="text" placeholder="اكتب العبارة هنا">
           <div class="control-row"><label class="field-label" for="textX">موضع النص أفقياً</label><output id="textXValue">50%</output></div>

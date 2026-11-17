@@ -1,0 +1,12 @@
+{
+  "name": "BeamNG Texture Editor",
+  "short_name": "BeamNG Studio",
+  "description": "محرر تكسترات BeamNG.drive محلياً",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#101116",
+  "theme_color": "#101116",
+  "icons": []
+}

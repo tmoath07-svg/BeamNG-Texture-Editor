@@ -9,3 +9,7 @@
 #selectionModeButton.active{border-color:#a78bfa;background:#39304f;color:#e7dcff}
 .danger-button{border-color:#714047;color:#ffc4c4}
 .canvas-wrap.selection-active canvas{cursor:crosshair}
+
+/* Smart text removal controls */
+#autoRemoveTextButton{margin-top:10px}
+#removeSelectedTextButton{margin-top:8px}

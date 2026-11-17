@@ -1,4 +1,4 @@
-const CACHE = "beamng-texture-editor-shell-v2";
+const CACHE = "beamng-texture-editor-shell-v3";
 const JSZIP_URL = "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js";
 const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./dds.js", "./manifest.webmanifest"];
 self.addEventListener("install", event => {
